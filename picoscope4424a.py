@@ -84,7 +84,7 @@ class PicoScope4424A(Oscilloscope):
             raise ValueError("coupling must be 'AC' or 'DC'")
 
         if voltage_range is None:
-            voltage_range = ps.PS4000A_RANGE["PS4000A_100MV"]
+            voltage_range =10 # ps.PS4000A_RANGE["PS4000A_100MV"]
 
         status_key = f"channel_{channel}"
 
@@ -280,14 +280,22 @@ class PicoScope4424A(Oscilloscope):
                 dtype=np.int16,
             )
 
-            mv = np.asarray(
-                adc2mV(
-                    adc_samples,
-                    voltage_range,
-                    max_adc,
-                ),
-                dtype=float,
+#            mv = np.asarray(
+#                adc2mV(
+#                   adc_samples,
+#                   voltage_range,
+#                    max_adc,
+#                ),
+#                dtype=float,
+#           )
+
+            mv = (
+                adc_samples.astype(np.float64)
+                * float(voltage_range)
+                / float(max_adc)
             )
+
+
 
             data[channel_name] = mv / 1000.0
 
