@@ -7,7 +7,7 @@ import numpy as np
 import struct
 import time
 
-BIN_PATH="/home/pstester/bpc_Test/python/bpc_Tester2/"
+BIN_PATH="/home/pstester/BPC/"
 
 system('clear')
 print("")
@@ -86,7 +86,7 @@ for k in chan:
 			x = input()
 			if x=='':
 			#	cmd_str = "sudo python3 /home/dib/noise1.py %s %s %s" % (model1, serial, k)
-				cmd_str = f" python3 {BIN_PATH}noise1.py %s %s %s" % (model1, serial, k)
+				cmd_str = f" python3 {BIN_PATH}noise1_tw.py %s %s %s %s" % (model1, serial, k,ip)
 
 				os.system(cmd_str)
 				print("\nPress Enter to continue or 'r' to redo step...", end="")
@@ -104,12 +104,15 @@ for k in chan:
 			x=input()
 			if x=='':
 				cmd_str = "sudo python3 /home/dib/step1.py %s %s %s" % (model1, serial, k)
+				cmd_str = f" python3 {BIN_PATH}step1_TW.py %s %s %s %s" % (model1, serial, k, ip)
 				os.system(cmd_str)
 				print("\nPress Enter to continue or 'r' to redo step...", end="")
 				x = input()
 			if x!='' and x!='s':
 				x='r'
 		
+		exit()
+
 		x='r'
 		while x =='r':
 			system('clear')

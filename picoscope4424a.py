@@ -28,6 +28,21 @@ class PicoScope4424A(Oscilloscope):
         "FALLING": ps.PS4000A_THRESHOLD_DIRECTION["PS4000A_FALLING"],
     }
 
+    VOLTAGE_RANGE_MAP={
+        0.01:   0,
+        0.02:   1,
+        0.05:   2,
+        0.1:    3,
+        0.2:    4,
+        0.5:    5,
+        1.0:    6,
+        2.0:    7,
+        5.0:    8,
+        10.0:   9,
+        20.0:   10,
+        50.0:   11
+    }
+
     def __init__(self):
         super().__init__()
         self.status = {}
@@ -88,12 +103,14 @@ class PicoScope4424A(Oscilloscope):
 
         status_key = f"channel_{channel}"
 
+        range_enum=self.VOLTAGE_RANGE_MAP[voltage_range]
+
         self.status[status_key] = ps.ps4000aSetChannel(
             self.chandle,
             self.CHANNEL_MAP[channel],
             int(enabled),
             self.COUPLING_MAP[coupling],
-            voltage_range,
+            range_enum,
             offset,
         )
         assert_pico_ok(self.status[status_key])
@@ -297,7 +314,7 @@ class PicoScope4424A(Oscilloscope):
 
 
 
-            data[channel_name] = mv / 1000.0
+            data[channel_name] = mv #/ 1000.0
 
         t = np.arange(count, dtype=float) * dt
 

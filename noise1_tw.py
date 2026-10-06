@@ -15,7 +15,9 @@ import ctypes
 import csv
 from datetime import datetime
 from bpc import  BPC
-from waveform_generator import Agilent33220A
+#from waveform_generator import Agilent33220A
+from waveform_generator import Keysight33500B
+from picoscope4424a import PicoScope4424A
 
 message = b"XXXXXXXXLoop"
 
@@ -42,6 +44,120 @@ def poll_BPC():
 def getBPC_Parameter(payload,index):
   w = np.asarray(struct.unpack('>60f', payload)) 
   return w[index]
+
+def pico_setup_o(pico):
+    """
+    Open and configure the PicoScope 4424A, capture Channel B,
+    calculate RMS, and return the captured data.
+
+    Returns
+    -------
+    time_s : numpy.ndarray
+        Time axis in seconds.
+    volts : numpy.ndarray
+        Channel B samples in volts.
+    rms : float
+        RMS voltage of Channel B.
+    """
+#    pico = PicoScope4424A()
+
+    try:
+        # Open PicoScope
+        pico.open()
+
+        # Configure channels.
+        # Channel B is enabled and AC coupled; all others are disabled.
+        pico.configure_channel("A", enabled=False)
+
+        pico.configure_channel(
+            "B",
+            enabled=True,
+            coupling="AC",
+            voltage_range=None,
+            offset=0.0,
+        )
+
+        pico.configure_channel("C", enabled=False)
+        pico.configure_channel("D", enabled=False)
+
+        # Trigger on Channel B at 0 ADC counts, rising edge.
+        pico.configure_trigger(
+            channel="B",
+            threshold_adc=0,
+            direction="RISING",
+            delay=0,
+            auto_trigger_ms=500,
+            enabled=True,
+        )
+
+        # Preserve the acquisition settings from the original pico_setup().
+        time_s, data = pico.capture(
+            pre_trigger=10_000,
+            post_trigger=90_000,
+            starting_timebase=799,
+        )
+
+        volts = data["B"]
+        mv=1000*volts
+
+        # calculate_rms() is inherited from the Oscilloscope base class.
+        rms = pico.calculate_rms(volts)
+
+        print(f"Channel B RMS: {rms:.9g} V")
+        print(f"Channel B RMS: {rms * 1000:.6g} mV")
+
+        #if overflow.value:
+        #    print("WARNING: input overflow detected. Increase the voltage range.")
+
+        # Save capture
+        output = "pico4424a_capture.csv"
+        with open(output, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["time_s", "channel_B_V"])
+            writer.writerows(zip(time_s, volts))
+
+        print(f"Saved capture to {output}")
+
+
+
+
+    # ========================================================
+    # PLOT
+    # ========================================================
+        DATA_LOCATION="/home/pstester/bpc_Test/output/"
+        timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
+        CSV_FILE = f"{DATA_LOCATION}{timestamp}_pscope.csv"
+        PNG_FILE=  f"{DATA_LOCATION}picoscope_4424A_capture.png"
+        PNG2_FILE = f"{DATA_LOCATION}{timestamp}_pscope.png"
+
+        plt.figure()
+#    plt.plot(time_s, voltage_a_v-.3,label="Ch A")
+        plt.plot(time_s, mv,label="Ch_Bx")
+ #   plt.plot(time_s, voltage_c_v,label="Ch_C")
+ #   plt.plot(time_s, voltage_d_v,label="Ch_D")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Voltage (mV)")
+        plt.title(f"{PNG2_FILE}")
+        plt.legend()
+        plt.grid(True)
+        plt.text(
+                 .02,.95,
+                 f"Noise 1 Test Ch {chan}: RMS {rms * 1000:.6g} mV",
+                 transform=plt.gca().transAxes,
+                 fontsize=12,
+                 verticalalignment="top" 
+                )
+        plt.tight_layout()
+        plt.savefig(PNG_FILE,dpi=300,bbox_inches="tight")
+        os.system(f"cp {PNG_FILE} {PNG2_FILE}")
+        plt.show()
+
+
+        #return time_s, volts, rms
+
+    finally:
+        # Ensure the scope is stopped/closed even if acquisition fails.
+        pico.close()
 
 
 def pico_setup():
@@ -322,7 +438,8 @@ td1=0.1
 
 AGILENT_IP = "192.168.0.210"
 
-wave = Agilent33220A(AGILENT_IP)
+#wave = Agilent33220A(AGILENT_IP)
+wave = Keysight33500B(AGILENT_IP)
 try:
         wave.connect()
         wave.set_dc(1.3, channel=1)
@@ -347,10 +464,23 @@ finally:
      bpc.close()
 
 
-exit()
+#exit()
 #/home/pstester/bpc_Test/python/bpc_Tester2
-os.system("python /home/pstester/bpc_Test/python/bpc_Tester2/wave_k.py --mode=2 --offset=.3")
+#os.system("python /home/pstester/bpc_Test/python/bpc_Tester2/wave_k.py --mode=2 --offset=.3")
+pico = PicoScope4424A()
+#pico_setup_o(pico)
 pico_setup()
+
+
+try:
+        wave.connect()
+        wave.set_dc(0, channel=1)
+        wave.output_off(1)
+        print("Waveform output off.")
+finally:
+        wave.close()
+
+
 exit()
 
 
