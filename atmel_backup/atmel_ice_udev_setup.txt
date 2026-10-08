@@ -1,0 +1,97 @@
+ATMEL-ICE USB PERMISSIONS (UDEV) - UBUNTU / LINUX
+================================================
+
+Purpose
+-------
+Allow a regular Linux user to access the Atmel-ICE USB programmer with
+AVRDUDE, without running AVRDUDE or backup scripts with sudo.
+
+Observed Atmel-ICE USB identifiers:
+  Vendor ID:  03eb
+  Product ID: 2141
+
+1. Create a udev rule (administrator privileges required once)
+---------------------------------------------------------------
+Run:
+  sudo nano /etc/udev/rules.d/99-atmel-ice.rules
+
+Paste this single line:
+  SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2141", MODE="0660", GROUP="plugdev"
+
+Save with Ctrl+O, Enter; exit with Ctrl+X.
+
+2. Ensure the group exists and add your user
+--------------------------------------------
+Run:
+  sudo groupadd -f plugdev
+  sudo usermod -aG plugdev "$USER"
+
+The -aG option preserves your existing supplementary groups.
+
+3. Reload rules and reconnect the programmer
+--------------------------------------------
+Run:
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger
+
+Unplug the Atmel-ICE USB cable and plug it back in.
+Log out of your Linux desktop session and log back in so the new group
+membership applies to your terminal and applications.
+
+4. Verify the setup
+-------------------
+Check your active group memberships:
+  id -nG
+
+The output should include plugdev.
+
+Check that the programmer appears on USB:
+  lsusb -d 03eb:2141
+
+Test AVRDUDE WITHOUT sudo, with the Atmel-ICE connected to the target:
+  avrdude -c atmelice_isp -p m2560 -v
+
+A successful connection should show the ATmega2560 signature:
+  0x1e9801
+
+5. Run your backup without sudo
+-------------------------------
+From the directory containing backup_atmega2560.sh:
+  ./backup_atmega2560.sh 0003
+
+If your script uses:
+  BACKUP_DIR="${2:-$PWD/atmega2560_backup}"
+then backups are saved under ./atmega2560_backup/ in the directory
+from which you launched the script.
+
+6. Fix ownership of earlier backups (only if needed)
+----------------------------------------------------
+If older backups were created using sudo, run from your script directory:
+  sudo chown -R "$(id -un):$(id -gn)" ./atmega2560_backup
+
+7. Troubleshooting
+------------------
+* 'Operation not permitted' or 'unable to claim interface':
+  - Confirm 'plugdev' appears in 'id -nG'. Log out and back in if not.
+  - Unplug and reconnect the Atmel-ICE after reloading rules.
+  - Verify the VID/PID using 'lsusb'. Other programmer modes or revisions
+    may expose different product IDs and need another rule.
+  - Check permissions of the actual USB device node using 'lsusb -t'
+    and 'ls -l /dev/bus/usb/BBB/DDD' (replace BBB/DDD with the bus/device
+    numbers shown by lsusb).
+  - Close other programs that may be using the programmer.
+
+* 'Permission denied' while creating a backup directory:
+  - Check directory ownership with 'ls -ld ./atmega2560_backup'.
+  - Use the chown command in section 6 if it belongs to root.
+
+* '-U: command not found':
+  - This is a separate Bash syntax issue, not a USB permission issue.
+  - Ensure the AVRDUDE command and each continued -U line except the last
+    end with a backslash (\), with no trailing spaces after it.
+
+Security note
+-------------
+The rule grants USB device access to users in the plugdev group, not to
+all users. Administrator privileges are still needed to install the rule
+and change group membership, but not for normal AVRDUDE operation.

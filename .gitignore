@@ -1,0 +1,6 @@
+/atmel_backup/atmega2560_backup/
+__pycache__/
+*.pyc
+
+pico4424a_capture.csv
+picoscope_4424A_capture.png
